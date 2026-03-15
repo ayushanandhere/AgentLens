@@ -1,0 +1,211 @@
+### AgentLens API examples
+### IntelliJ HTTP Client file
+
+@baseUrl = http://localhost:8080
+@json = application/json
+
+### Health check
+GET {{baseUrl}}/actuator/health
+Accept: application/json
+
+### List agents
+GET {{baseUrl}}/api/v1/agents?page=0&size=20
+Accept: application/json
+
+### Create agent
+POST {{baseUrl}}/api/v1/agents
+Content-Type: {{json}}
+
+{
+  "name": "fraud-monitor",
+  "description": "Analyzes payment activity and flags suspicious patterns",
+  "owner": "ops@agentlens.dev"
+}
+
+### Get agent by id
+GET {{baseUrl}}/api/v1/agents/{{agentId}}
+Accept: application/json
+
+### Update agent
+PATCH {{baseUrl}}/api/v1/agents/{{agentId}}
+Content-Type: {{json}}
+
+{
+  "description": "Analyzes payment activity, flags suspicious patterns, and prepares case summaries",
+  "status": "ACTIVE"
+}
+
+### Kill agent
+POST {{baseUrl}}/api/v1/agents/{{agentId}}/kill
+Accept: application/json
+
+### Start trace
+POST {{baseUrl}}/api/v1/traces
+Content-Type: {{json}}
+
+{
+  "agentId": "{{agentId}}",
+  "model": "gpt-4o",
+  "promptText": "Review the latest failed payment batch and summarize the highest-risk anomalies.",
+  "temperature": 0.35,
+  "tenantId": "tenant-acme",
+  "sessionId": "session-001",
+  "metadata": {
+    "source": "manual-http-test",
+    "environment": "local"
+  }
+}
+
+### Add tool event
+POST {{baseUrl}}/api/v1/traces/{{traceId}}/events
+Content-Type: {{json}}
+
+{
+  "eventType": "TOOL_CALL",
+  "eventName": "queryDatabase",
+  "inputData": {
+    "query": "SELECT * FROM failed_payments WHERE batch_id = 'batch-2026-03-15'"
+  },
+  "outputData": {
+    "rows": 42,
+    "highRiskCount": 5
+  },
+  "status": "SUCCESS",
+  "durationMs": 182
+}
+
+### Add retrieval event
+POST {{baseUrl}}/api/v1/traces/{{traceId}}/events
+Content-Type: {{json}}
+
+{
+  "eventType": "RETRIEVAL",
+  "eventName": "fetchIncidentRunbook",
+  "inputData": {
+    "documentId": "runbook-payments-12"
+  },
+  "outputData": {
+    "chunks": 4,
+    "relevance": 0.91
+  },
+  "status": "SUCCESS",
+  "durationMs": 64
+}
+
+### Complete trace
+PUT {{baseUrl}}/api/v1/traces/{{traceId}}/complete
+Content-Type: {{json}}
+
+{
+  "responseText": "The batch contains 5 high-risk anomalies, mostly clustered around rapid retries and mismatched billing metadata.",
+  "inputTokens": 3200,
+  "outputTokens": 780,
+  "groundingScore": 0.87,
+  "ttftMs": 215
+}
+
+### List traces
+GET {{baseUrl}}/api/v1/traces?page=0&size=20&sort=startedAt,desc
+Accept: application/json
+
+### List traces with filters
+GET {{baseUrl}}/api/v1/traces?tenantId=tenant-acme&status=BLOCKED&policyResult=FAIL&page=0&size=10
+Accept: application/json
+
+### Get trace detail
+GET {{baseUrl}}/api/v1/traces/{{traceId}}
+Accept: application/json
+
+### List policies
+GET {{baseUrl}}/api/v1/policies?page=0&size=20
+Accept: application/json
+
+### Create policy
+POST {{baseUrl}}/api/v1/policies
+Content-Type: {{json}}
+
+{
+  "name": "Customer Support Tool Guard",
+  "description": "Block destructive tools for support-facing agents",
+  "policyType": "TOOL_BLOCK",
+  "config": {
+    "blocked_tools": [
+      "deleteDatabase",
+      "execShell",
+      "dropTable"
+    ]
+  },
+  "scope": "GLOBAL",
+  "severity": "BLOCK"
+}
+
+### Update policy
+PUT {{baseUrl}}/api/v1/policies/{{policyId}}
+Content-Type: {{json}}
+
+{
+  "name": "Customer Support Tool Guard",
+  "description": "Block destructive tools and warn on shell escalation attempts",
+  "policyType": "TOOL_BLOCK",
+  "config": {
+    "blocked_tools": [
+      "deleteDatabase",
+      "execShell",
+      "dropTable",
+      "truncateTable"
+    ]
+  },
+  "scope": "GLOBAL",
+  "severity": "BLOCK"
+}
+
+### Disable policy
+DELETE {{baseUrl}}/api/v1/policies/{{policyId}}
+
+### List violations
+GET {{baseUrl}}/api/v1/violations?page=0&size=20
+Accept: application/json
+
+### Approve violation
+POST {{baseUrl}}/api/v1/violations/{{violationId}}/approve
+Content-Type: {{json}}
+
+{
+  "resolvedBy": "admin@agentlens.dev"
+}
+
+### Analytics summary
+GET {{baseUrl}}/api/v1/analytics/summary
+Accept: application/json
+
+### Analytics summary with filters
+GET {{baseUrl}}/api/v1/analytics/summary?tenantId=tenant-acme&startDate=2026-03-15T00:00:00Z&endDate=2026-03-16T00:00:00Z
+Accept: application/json
+
+### Cost breakdown by model
+GET {{baseUrl}}/api/v1/analytics/cost?groupBy=model
+Accept: application/json
+
+### Cost breakdown by agent
+GET {{baseUrl}}/api/v1/analytics/cost?groupBy=agent
+Accept: application/json
+
+### Latency percentiles
+GET {{baseUrl}}/api/v1/analytics/latency
+Accept: application/json
+
+### Violation trends
+GET {{baseUrl}}/api/v1/analytics/violations
+Accept: application/json
+
+### Top agents
+GET {{baseUrl}}/api/v1/analytics/top-agents?limit=5
+Accept: application/json
+
+### Audit log
+GET {{baseUrl}}/api/v1/audit?page=0&size=20
+Accept: application/json
+
+### Audit log filtered
+GET {{baseUrl}}/api/v1/audit?action=POLICY_VIOLATED&resourceType=TRACE&page=0&size=20
+Accept: application/json
