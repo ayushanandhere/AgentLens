@@ -1,0 +1,13 @@
+agentlens:
+  security:
+    allowed-origins:
+      - http://localhost:5173
+    api-keys:
+      - name: local-ingest
+        key: ingest-local-key
+        scope: INGEST
+      - name: local-operator
+        key: operator-local-key
+        scope: OPERATOR
+  demo:
+    enabled: true

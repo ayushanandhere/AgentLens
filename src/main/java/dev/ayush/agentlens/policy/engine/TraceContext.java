@@ -16,4 +16,7 @@ public class TraceContext {
     private final Trace trace;
     private final List<TraceEvent> events;
     private final Agent agent;
+    private final TraceEvent currentEvent;
+    private final PolicyEvaluationStage stage;
+    private final boolean dryRun;
 }

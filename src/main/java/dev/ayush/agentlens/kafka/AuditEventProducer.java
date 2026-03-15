@@ -58,6 +58,21 @@ public class AuditEventProducer {
                 Map.of("agent_id", trace.getAgent().getId().toString(), "reason", reason));
     }
 
+    public void publishTracePendingApproval(Trace trace, String reason) {
+        publish("system:policy-engine", "TRACE_PENDING_APPROVAL", "TRACE", trace.getId().toString(),
+                Map.of("agent_id", trace.getAgent().getId().toString(), "reason", reason));
+    }
+
+    public void publishTraceApproved(Trace trace, String approvedBy) {
+        publish("user:" + approvedBy, "TRACE_APPROVED", "TRACE", trace.getId().toString(),
+                Map.of("agent_id", trace.getAgent().getId().toString()));
+    }
+
+    public void publishTraceRejected(Trace trace, String rejectedBy, String reason) {
+        publish("user:" + rejectedBy, "TRACE_REJECTED", "TRACE", trace.getId().toString(),
+                Map.of("agent_id", trace.getAgent().getId().toString(), "reason", nullSafe(reason)));
+    }
+
     public void publishPolicyViolated(PolicyViolation violation, Trace trace) {
         publish("system:policy-engine", "POLICY_VIOLATED", "TRACE", trace.getId().toString(),
                 Map.of("violation_id", violation.getId().toString(),

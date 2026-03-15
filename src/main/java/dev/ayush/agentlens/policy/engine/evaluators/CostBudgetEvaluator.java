@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class CostBudgetEvaluator implements PolicyEvaluator {
@@ -12,6 +13,11 @@ public class CostBudgetEvaluator implements PolicyEvaluator {
     @Override
     public PolicyType getType() {
         return PolicyType.COST_BUDGET;
+    }
+
+    @Override
+    public Set<PolicyEvaluationStage> stages() {
+        return Set.of(PolicyEvaluationStage.COMPLETION);
     }
 
     @Override

@@ -23,11 +23,18 @@ public class PiiDetectionEvaluator implements PolicyEvaluator {
     }
 
     @Override
-    public PolicyResult evaluate(Map<String, Object> config, TraceContext context) {
-        String promptText = context.getTrace().getPromptText();
-        String responseText = context.getTrace().getResponseText();
+    public Set<PolicyEvaluationStage> stages() {
+        return Set.of(PolicyEvaluationStage.EVENT_INGEST, PolicyEvaluationStage.COMPLETION);
+    }
 
-        if (promptText == null && responseText == null) {
+    @Override
+    public PolicyResult evaluate(Map<String, Object> config, TraceContext context) {
+        String promptText = context.getStage() == PolicyEvaluationStage.COMPLETION ? context.getTrace().getPromptText() : null;
+        String responseText = context.getStage() == PolicyEvaluationStage.COMPLETION ? context.getTrace().getResponseText() : null;
+        String eventInput = stringify(context.getCurrentEvent() != null ? context.getCurrentEvent().getInputData() : null);
+        String eventOutput = stringify(context.getCurrentEvent() != null ? context.getCurrentEvent().getOutputData() : null);
+
+        if (promptText == null && responseText == null && eventInput == null && eventOutput == null) {
             return PolicyResult.passed();
         }
 
@@ -55,6 +62,22 @@ public class PiiDetectionEvaluator implements PolicyEvaluator {
                     totalMatches += count;
                 }
             }
+            if (eventInput != null) {
+                int count = countMatches(pattern, eventInput);
+                if (count > 0) {
+                    piiTypesFound.add(piiType);
+                    locations.add("event_input");
+                    totalMatches += count;
+                }
+            }
+            if (eventOutput != null) {
+                int count = countMatches(pattern, eventOutput);
+                if (count > 0) {
+                    piiTypesFound.add(piiType);
+                    locations.add("event_output");
+                    totalMatches += count;
+                }
+            }
         }
 
         if (!piiTypesFound.isEmpty()) {
@@ -65,6 +88,13 @@ public class PiiDetectionEvaluator implements PolicyEvaluator {
             ));
         }
         return PolicyResult.passed();
+    }
+
+    private String stringify(Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) {
+            return null;
+        }
+        return payload.toString();
     }
 
     private int countMatches(Pattern pattern, String text) {

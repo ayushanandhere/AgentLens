@@ -5,5 +5,6 @@ public enum PolicyType {
     COST_BUDGET,
     TOOL_BLOCK,
     RATE_LIMIT,
-    PII_CHECK
+    PII_CHECK,
+    REQUIRE_APPROVAL
 }

@@ -23,6 +23,7 @@ public class AddEventRequest {
 
     private Map<String, Object> inputData;
     private Map<String, Object> outputData;
+    @Pattern(regexp = "SUCCESS|FAILURE|BLOCKED|TIMEOUT", message = "status must be SUCCESS, FAILURE, BLOCKED, or TIMEOUT")
     private String status;
     private Long durationMs;
     private String errorMessage;

@@ -1,6 +1,8 @@
 package dev.ayush.agentlens.policy;
 
 import dev.ayush.agentlens.policy.dto.CreatePolicyRequest;
+import dev.ayush.agentlens.policy.dto.EvaluatePoliciesRequest;
+import dev.ayush.agentlens.policy.dto.EvaluatePoliciesResponse;
 import dev.ayush.agentlens.policy.dto.PolicyResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -48,5 +50,10 @@ public class PolicyController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePolicy(@PathVariable UUID id) {
         policyService.deletePolicy(id);
+    }
+
+    @PostMapping("/evaluate")
+    public EvaluatePoliciesResponse evaluatePolicies(@Valid @RequestBody EvaluatePoliciesRequest request) {
+        return policyService.evaluatePolicies(request);
     }
 }

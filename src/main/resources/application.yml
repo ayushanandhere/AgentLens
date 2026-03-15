@@ -48,5 +48,20 @@ management:
       show-details: always
 
 agentlens:
+  security:
+    allowed-origins: []
+    api-keys: []
   demo:
-    enabled: true
+    enabled: false
+
+otel:
+  logs:
+    exporter: none
+  metrics:
+    exporter: none
+  exporter:
+    otlp:
+      endpoint: http://localhost:4318
+  resource:
+    attributes:
+      service.name: agentlens

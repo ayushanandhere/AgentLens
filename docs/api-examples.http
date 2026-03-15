@@ -1,211 +1,186 @@
 ### AgentLens API examples
-### IntelliJ HTTP Client file
+### Run the backend with:
+###   SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
+### The local profile enables demo traffic plus the API keys below.
 
 @baseUrl = http://localhost:8080
 @json = application/json
+@ingestKey = ingest-local-key
+@operatorKey = operator-local-key
 
-### Health check
+### 0) Public landing endpoint
+GET {{baseUrl}}/
+Accept: application/json
+
+### 1) Public health endpoint
 GET {{baseUrl}}/actuator/health
 Accept: application/json
 
-### List agents
-GET {{baseUrl}}/api/v1/agents?page=0&size=20
-Accept: application/json
-
-### Create agent
+### 2) Create an operator-managed agent
+### Copy the returned `id` into `@agentId` below.
 POST {{baseUrl}}/api/v1/agents
+X-API-Key: {{operatorKey}}
 Content-Type: {{json}}
 
 {
-  "name": "fraud-monitor",
-  "description": "Analyzes payment activity and flags suspicious patterns",
+  "name": "approval-demo-agent",
+  "description": "Exercises approval and policy flows",
   "owner": "ops@agentlens.dev"
 }
 
-### Get agent by id
-GET {{baseUrl}}/api/v1/agents/{{agentId}}
-Accept: application/json
+@agentId = REPLACE_WITH_AGENT_ID
 
-### Update agent
-PATCH {{baseUrl}}/api/v1/agents/{{agentId}}
-Content-Type: {{json}}
-
-{
-  "description": "Analyzes payment activity, flags suspicious patterns, and prepares case summaries",
-  "status": "ACTIVE"
-}
-
-### Kill agent
-POST {{baseUrl}}/api/v1/agents/{{agentId}}/kill
-Accept: application/json
-
-### Start trace
+### 3) Start a trace
+### Copy the returned `id` into `@traceId`.
 POST {{baseUrl}}/api/v1/traces
+X-API-Key: {{ingestKey}}
 Content-Type: {{json}}
 
 {
   "agentId": "{{agentId}}",
   "model": "gpt-4o",
-  "promptText": "Review the latest failed payment batch and summarize the highest-risk anomalies.",
-  "temperature": 0.35,
+  "promptText": "Review the deployment plan and decide whether to execute the shell command.",
   "tenantId": "tenant-acme",
-  "sessionId": "session-001",
-  "metadata": {
-    "source": "manual-http-test",
-    "environment": "local"
-  }
+  "sessionId": "session-approval"
 }
 
-### Add tool event
+@traceId = REPLACE_WITH_TRACE_ID
+
+### 4) Add a risky tool event
+### This should match the seeded shell approval policy and move the trace into PENDING_APPROVAL.
 POST {{baseUrl}}/api/v1/traces/{{traceId}}/events
+X-API-Key: {{ingestKey}}
 Content-Type: {{json}}
 
 {
   "eventType": "TOOL_CALL",
-  "eventName": "queryDatabase",
+  "eventName": "execShell",
   "inputData": {
-    "query": "SELECT * FROM failed_payments WHERE batch_id = 'batch-2026-03-15'"
+    "command": "kubectl rollout restart deployment/payments"
   },
   "outputData": {
-    "rows": 42,
-    "highRiskCount": 5
+    "status": "queued"
   },
   "status": "SUCCESS",
-  "durationMs": 182
+  "durationMs": 82
 }
 
-### Add retrieval event
-POST {{baseUrl}}/api/v1/traces/{{traceId}}/events
-Content-Type: {{json}}
-
-{
-  "eventType": "RETRIEVAL",
-  "eventName": "fetchIncidentRunbook",
-  "inputData": {
-    "documentId": "runbook-payments-12"
-  },
-  "outputData": {
-    "chunks": 4,
-    "relevance": 0.91
-  },
-  "status": "SUCCESS",
-  "durationMs": 64
-}
-
-### Complete trace
-PUT {{baseUrl}}/api/v1/traces/{{traceId}}/complete
-Content-Type: {{json}}
-
-{
-  "responseText": "The batch contains 5 high-risk anomalies, mostly clustered around rapid retries and mismatched billing metadata.",
-  "inputTokens": 3200,
-  "outputTokens": 780,
-  "groundingScore": 0.87,
-  "ttftMs": 215
-}
-
-### List traces
-GET {{baseUrl}}/api/v1/traces?page=0&size=20&sort=startedAt,desc
+### 5) List pending approvals
+### Copy the relevant violation `id` into `@violationId`.
+GET {{baseUrl}}/api/v1/violations?actionTaken=PENDING_APPROVAL&page=0&size=20
+X-API-Key: {{operatorKey}}
 Accept: application/json
 
-### List traces with filters
-GET {{baseUrl}}/api/v1/traces?tenantId=tenant-acme&status=BLOCKED&policyResult=FAIL&page=0&size=10
-Accept: application/json
+@violationId = REPLACE_WITH_VIOLATION_ID
 
-### Get trace detail
-GET {{baseUrl}}/api/v1/traces/{{traceId}}
-Accept: application/json
-
-### List policies
-GET {{baseUrl}}/api/v1/policies?page=0&size=20
-Accept: application/json
-
-### Create policy
-POST {{baseUrl}}/api/v1/policies
-Content-Type: {{json}}
-
-{
-  "name": "Customer Support Tool Guard",
-  "description": "Block destructive tools for support-facing agents",
-  "policyType": "TOOL_BLOCK",
-  "config": {
-    "blocked_tools": [
-      "deleteDatabase",
-      "execShell",
-      "dropTable"
-    ]
-  },
-  "scope": "GLOBAL",
-  "severity": "BLOCK"
-}
-
-### Update policy
-PUT {{baseUrl}}/api/v1/policies/{{policyId}}
-Content-Type: {{json}}
-
-{
-  "name": "Customer Support Tool Guard",
-  "description": "Block destructive tools and warn on shell escalation attempts",
-  "policyType": "TOOL_BLOCK",
-  "config": {
-    "blocked_tools": [
-      "deleteDatabase",
-      "execShell",
-      "dropTable",
-      "truncateTable"
-    ]
-  },
-  "scope": "GLOBAL",
-  "severity": "BLOCK"
-}
-
-### Disable policy
-DELETE {{baseUrl}}/api/v1/policies/{{policyId}}
-
-### List violations
-GET {{baseUrl}}/api/v1/violations?page=0&size=20
-Accept: application/json
-
-### Approve violation
+### 6a) Approve the violation and let the trace continue
 POST {{baseUrl}}/api/v1/violations/{{violationId}}/approve
+X-API-Key: {{operatorKey}}
 Content-Type: {{json}}
 
 {
   "resolvedBy": "admin@agentlens.dev"
 }
 
-### Analytics summary
+### 6b) Reject the violation instead
+POST {{baseUrl}}/api/v1/violations/{{violationId}}/reject
+X-API-Key: {{operatorKey}}
+Content-Type: {{json}}
+
+{
+  "resolvedBy": "admin@agentlens.dev",
+  "reason": "Rejected because shell access was not justified"
+}
+
+### 7) Complete the trace after approval
+PUT {{baseUrl}}/api/v1/traces/{{traceId}}/complete
+X-API-Key: {{ingestKey}}
+Content-Type: {{json}}
+
+{
+  "responseText": "The deployment step was approved and completed successfully.",
+  "inputTokens": 1800,
+  "outputTokens": 420,
+  "groundingScore": 0.88,
+  "ttftMs": 140
+}
+
+### 8) Fetch the trace detail
+GET {{baseUrl}}/api/v1/traces/{{traceId}}
+X-API-Key: {{operatorKey}}
+Accept: application/json
+
+### 9) Fetch the trace timeline
+GET {{baseUrl}}/api/v1/traces/{{traceId}}/timeline
+X-API-Key: {{operatorKey}}
+Accept: application/json
+
+### 10) List policies
+GET {{baseUrl}}/api/v1/policies?page=0&size=50
+X-API-Key: {{operatorKey}}
+Accept: application/json
+
+### 11) Create a custom approval policy
+POST {{baseUrl}}/api/v1/policies
+X-API-Key: {{operatorKey}}
+Content-Type: {{json}}
+
+{
+  "name": "Shell Approval Gate",
+  "description": "Pause traces before shell tools execute",
+  "policyType": "REQUIRE_APPROVAL",
+  "config": {
+    "for_tools": ["execShell"],
+    "approvers": ["admin@agentlens.dev"]
+  },
+  "scope": "GLOBAL",
+  "severity": "BLOCK"
+}
+
+### 12) Dry-run policy evaluation without starting a real trace
+POST {{baseUrl}}/api/v1/policies/evaluate
+X-API-Key: {{operatorKey}}
+Content-Type: {{json}}
+
+{
+  "agentId": "{{agentId}}",
+  "model": "gpt-4o",
+  "promptText": "Run a shell command to restart production.",
+  "events": [
+    {
+      "eventType": "TOOL_CALL",
+      "eventName": "execShell",
+      "inputData": {
+        "command": "deploy.sh"
+      },
+      "outputData": {
+        "status": "pending"
+      }
+    }
+  ]
+}
+
+### 13) Analytics summary
 GET {{baseUrl}}/api/v1/analytics/summary
+X-API-Key: {{operatorKey}}
 Accept: application/json
 
-### Analytics summary with filters
-GET {{baseUrl}}/api/v1/analytics/summary?tenantId=tenant-acme&startDate=2026-03-15T00:00:00Z&endDate=2026-03-16T00:00:00Z
-Accept: application/json
-
-### Cost breakdown by model
+### 14) Analytics cost by model
 GET {{baseUrl}}/api/v1/analytics/cost?groupBy=model
+X-API-Key: {{operatorKey}}
 Accept: application/json
 
-### Cost breakdown by agent
-GET {{baseUrl}}/api/v1/analytics/cost?groupBy=agent
-Accept: application/json
-
-### Latency percentiles
+### 15) Analytics latency
 GET {{baseUrl}}/api/v1/analytics/latency
+X-API-Key: {{operatorKey}}
 Accept: application/json
 
-### Violation trends
+### 16) Analytics violations
 GET {{baseUrl}}/api/v1/analytics/violations
+X-API-Key: {{operatorKey}}
 Accept: application/json
 
-### Top agents
-GET {{baseUrl}}/api/v1/analytics/top-agents?limit=5
-Accept: application/json
-
-### Audit log
+### 17) Audit log
 GET {{baseUrl}}/api/v1/audit?page=0&size=20
-Accept: application/json
-
-### Audit log filtered
-GET {{baseUrl}}/api/v1/audit?action=POLICY_VIOLATED&resourceType=TRACE&page=0&size=20
+X-API-Key: {{operatorKey}}
 Accept: application/json

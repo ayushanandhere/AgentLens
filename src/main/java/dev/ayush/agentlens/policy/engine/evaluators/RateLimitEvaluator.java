@@ -1,6 +1,9 @@
 package dev.ayush.agentlens.policy.engine.evaluators;
 
 import dev.ayush.agentlens.policy.engine.*;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -9,12 +12,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
 public class RateLimitEvaluator implements PolicyEvaluator {
 
     private final StringRedisTemplate redisTemplate;
+    private final Tracer tracer;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public PolicyType getType() {
@@ -22,16 +28,33 @@ public class RateLimitEvaluator implements PolicyEvaluator {
     }
 
     @Override
+    public Set<PolicyEvaluationStage> stages() {
+        return Set.of(PolicyEvaluationStage.PRE_EXECUTION);
+    }
+
+    @Override
     public PolicyResult evaluate(Map<String, Object> config, TraceContext context) {
+        Span span = tracer.spanBuilder("policy.rate_limit")
+                .setAttribute("policy.agent_id", context.getAgent().getId().toString())
+                .setAttribute("policy.dry_run", context.isDryRun())
+                .startSpan();
+        try (var ignored = span.makeCurrent()) {
         int maxRunsPerMinute = ((Number) config.get("max_runs_per_minute")).intValue();
         String agentId = context.getAgent().getId().toString();
         long windowSeconds = Instant.now().truncatedTo(ChronoUnit.MINUTES).getEpochSecond();
 
         String key = "ratelimit:" + agentId + ":" + windowSeconds;
-        Long count = redisTemplate.opsForValue().increment(key);
-        redisTemplate.expire(key, Duration.ofSeconds(120));
+        Long count;
+        if (context.isDryRun()) {
+            String current = redisTemplate.opsForValue().get(key);
+            count = current != null ? Long.parseLong(current) + 1 : 1L;
+        } else {
+            count = redisTemplate.opsForValue().increment(key);
+            redisTemplate.expire(key, Duration.ofSeconds(120));
+        }
 
         if (count != null && count > maxRunsPerMinute) {
+            meterRegistry.counter("agentlens.policy.rate_limit.hit").increment();
             return PolicyResult.violated(Map.of(
                     "limit_per_minute", maxRunsPerMinute,
                     "current_count", count,
@@ -39,5 +62,8 @@ public class RateLimitEvaluator implements PolicyEvaluator {
             ));
         }
         return PolicyResult.passed();
+        } finally {
+            span.end();
+        }
     }
 }

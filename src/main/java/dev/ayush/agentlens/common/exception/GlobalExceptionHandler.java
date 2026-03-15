@@ -24,6 +24,21 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, "AGENT_BLOCKED", ex.getMessage());
     }
 
+    @ExceptionHandler(TracePendingApprovalException.class)
+    public ResponseEntity<Map<String, Object>> handlePendingApproval(TracePendingApprovalException ex) {
+        return buildResponse(HttpStatus.CONFLICT, "TRACE_PENDING_APPROVAL", ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        return buildResponse(HttpStatus.CONFLICT, "INVALID_STATE", ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = new HashMap<>();

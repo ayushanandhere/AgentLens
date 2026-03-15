@@ -4,6 +4,7 @@ import dev.ayush.agentlens.policy.engine.*;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class TokenBudgetEvaluator implements PolicyEvaluator {
@@ -11,6 +12,11 @@ public class TokenBudgetEvaluator implements PolicyEvaluator {
     @Override
     public PolicyType getType() {
         return PolicyType.TOKEN_BUDGET;
+    }
+
+    @Override
+    public Set<PolicyEvaluationStage> stages() {
+        return Set.of(PolicyEvaluationStage.COMPLETION);
     }
 
     @Override

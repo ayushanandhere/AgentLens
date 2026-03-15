@@ -13,6 +13,7 @@ import dev.ayush.agentlens.trace.dto.TraceResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
+@Profile({"local", "dev"})
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "agentlens.demo.enabled", havingValue = "true")
 @Slf4j

@@ -54,4 +54,9 @@ public class TraceController {
     public TraceDetailResponse getTrace(@PathVariable UUID id) {
         return traceService.getTrace(id);
     }
+
+    @GetMapping("/{id}/timeline")
+    public TraceTimelineResponse getTraceTimeline(@PathVariable UUID id) {
+        return traceService.getTraceTimeline(id);
+    }
 }

@@ -37,7 +37,7 @@ public class AnalyticsService {
                   AVG(estimated_cost) FILTER (WHERE estimated_cost IS NOT NULL) as avg_cost_usd,
                   SUM(estimated_cost) FILTER (WHERE estimated_cost IS NOT NULL) as total_cost_usd,
                   AVG(grounding_score) FILTER (WHERE grounding_score IS NOT NULL) as avg_grounding_score,
-                  COUNT(*) FILTER (WHERE policy_result IN ('FAIL', 'WARN')) * 100.0 / NULLIF(COUNT(*), 0) as violation_rate_percent
+                  COUNT(*) FILTER (WHERE policy_result IS NOT NULL AND policy_result <> 'PASS') * 100.0 / NULLIF(COUNT(*), 0) as violation_rate_percent
                 FROM traces
                 """);
 
@@ -212,10 +212,9 @@ public class AnalyticsService {
                 SELECT DATE(pv.created_at) as day, COUNT(*) as count
                 FROM policy_violations pv
                 JOIN traces t ON pv.trace_id = t.id
-                WHERE pv.created_at > NOW() - INTERVAL '7 days'
                 """);
 
-        appendTraceFilters(sql, "t", filters, params, true);
+        appendTraceFilters(sql, "t", filters, params, false);
         sql.append(" GROUP BY DATE(pv.created_at) ORDER BY day");
 
         List<ViolationDayCount> counts = new ArrayList<>();
