@@ -63,16 +63,28 @@ Without a system like this, the team would usually piece the story together from
 
 ```mermaid
 flowchart LR
-    User["User or System Request"] --> Agent["AI Agent"]
-    Agent --> Trace["AgentLens records a trace"]
-    Trace --> Events["Tool calls, retrievals, responses, and errors become events"]
-    Events --> Policies["Policies evaluate what is happening"]
-    Policies -->|safe| Complete["Trace completes normally"]
-    Policies -->|risky| Review["Warn, block, or request human approval"]
-    Review --> Dashboard["Operator dashboard and audit trail"]
-    Complete --> Dashboard
-```
+    subgraph Input
+        A["🧑 User / System"] --> B["🤖 AI Agent"]
+    end
 
+    subgraph AgentLens
+        B -->|"start trace"| C["📋 Trace Recorded"]
+        C --> D["📌 Events Captured\n tool calls · retrievals\n LLM calls · errors"]
+        D --> E{"⚖️ Policy\nEvaluation"}
+        E -->|"✅ safe"| F["✔️ Trace Completes"]
+        E -->|"⚠️ warn"| G["⚠️ Warn + Continue"]
+        E -->|"🛑 block"| H["❌ Trace Blocked"]
+        E -->|"⏸️ risky"| I["🔒 Pending Approval"]
+        I -->|"approved"| F
+        I -->|"rejected"| H
+    end
+
+    subgraph Outcomes
+        F --> J["📊 Dashboard\n& Audit Trail"]
+        G --> J
+        H --> J
+    end
+```
 ## In One Sentence
 
 AgentLens helps teams run AI agents more responsibly by making each run observable, governable, and reviewable from start to finish.
@@ -81,25 +93,69 @@ AgentLens helps teams run AI agents more responsibly by making each run observab
 
 ```mermaid
 graph TB
-    Agent["AI Agent"] -->|"POST /api/v1/traces"| API["Spring Boot API"]
-    Agent -->|"POST /events"| API
-    Operator["Operator Dashboard"] -->|"REST + polling"| API
+    subgraph Clients
+        Agent["🤖 AI Agent\n(any framework)"]
+        Dashboard["🖥️ Operator Dashboard\n(React + TypeScript)"]
+    end
 
-    API --> TraceService["Trace Service"]
-    API --> PolicyEngine["Policy Engine"]
-    API --> Analytics["Analytics Service"]
-    API --> Security["API Key Filter"]
+    subgraph API Layer
+        Gateway["Spring Boot API\n:8080"]
+        AuthFilter["🔐 API Key Filter\nINGEST | OPERATOR scopes"]
+    end
 
-    PolicyEngine --> Redis[("Redis")]
-    PolicyEngine --> Violations[("PostgreSQL")]
-    TraceService --> Traces[("PostgreSQL")]
-    TraceService --> Kafka[("Kafka")]
+    subgraph Core Services
+        TraceService["📋 Trace Service\nlifecycle management"]
+        PolicyEngine["⚖️ Policy Engine\n6 evaluator types"]
+        AnalyticsService["📊 Analytics Service\naggregations + percentiles"]
+        AuditService["📜 Audit Service\nimmutable event log"]
+    end
 
-    Kafka --> AuditConsumer["Audit Event Consumer"]
-    AuditConsumer --> AuditLog[("Audit Log")]
+    subgraph Policy Evaluators
+        E1["Token Budget"]
+        E2["Cost Budget"]
+        E3["Tool Blocklist"]
+        E4["Rate Limit"]
+        E5["PII Detection"]
+        E6["Require Approval"]
+    end
 
-    API -. "spans" .-> OTel["OpenTelemetry"]
-    OTel --> Jaeger["Jaeger"]
+    subgraph Infrastructure
+        Postgres[("🐘 PostgreSQL\ntraces · policies\nviolations · audit")]
+        Redis[("⚡ Redis\nrate limiting\ncounters + TTL")]
+        Kafka[("📨 Kafka\nagent-traces\npolicy-violations\naudit-events")]
+    end
+
+    subgraph Observability
+        OTel["OpenTelemetry\nspans + metrics"]
+        Jaeger["Jaeger UI\n:16686"]
+        Prometheus["Prometheus\n/actuator/prometheus"]
+    end
+
+    subgraph Kafka Consumers
+        AuditConsumer["Audit Event\nConsumer"]
+    end
+
+    Agent -->|"POST /traces\nPOST /events\nPUT /complete"| Gateway
+    Dashboard -->|"GET + polling\napprove / reject"| Gateway
+    Gateway --> AuthFilter
+    AuthFilter --> TraceService
+    AuthFilter --> PolicyEngine
+    AuthFilter --> AnalyticsService
+
+    TraceService --> Postgres
+    TraceService --> Kafka
+    PolicyEngine --> E1 & E2 & E3 & E4 & E5 & E6
+    E4 --> Redis
+    PolicyEngine --> Postgres
+    AnalyticsService --> Postgres
+    AuditService --> Postgres
+
+    Kafka --> AuditConsumer
+    AuditConsumer --> AuditService
+
+    Gateway -.->|"spans"| OTel
+    OTel --> Jaeger
+    Gateway -.->|"metrics"| Prometheus
 ```
 
 More detail is in [`docs/architecture.md`](./docs/architecture.md).
