@@ -61,102 +61,17 @@ Without a system like this, the team would usually piece the story together from
 
 ## High-Level View
 
-```mermaid
-flowchart LR
-    subgraph Input
-        A["🧑 User / System"] --> B["🤖 AI Agent"]
-    end
+![AgentLens high-level flow](docs/agentlens-high-level-flow.svg)
 
-    subgraph AgentLens
-        B -->|"start trace"| C["📋 Trace Recorded"]
-        C --> D["📌 Events Captured\n tool calls · retrievals\n LLM calls · errors"]
-        D --> E{"⚖️ Policy\nEvaluation"}
-        E -->|"✅ safe"| F["✔️ Trace Completes"]
-        E -->|"⚠️ warn"| G["⚠️ Warn + Continue"]
-        E -->|"🛑 block"| H["❌ Trace Blocked"]
-        E -->|"⏸️ risky"| I["🔒 Pending Approval"]
-        I -->|"approved"| F
-        I -->|"rejected"| H
-    end
 
-    subgraph Outcomes
-        F --> J["📊 Dashboard\n& Audit Trail"]
-        G --> J
-        H --> J
-    end
-```
 ## In One Sentence
 
 AgentLens helps teams run AI agents more responsibly by making each run observable, governable, and reviewable from start to finish.
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph Clients
-        Agent["🤖 AI Agent\n(any framework)"]
-        Dashboard["🖥️ Operator Dashboard\n(React + TypeScript)"]
-    end
+![AgentLens architecture](docs/agentlens-architecture.svg)
 
-    subgraph API Layer
-        Gateway["Spring Boot API\n:8080"]
-        AuthFilter["🔐 API Key Filter\nINGEST | OPERATOR scopes"]
-    end
-
-    subgraph Core Services
-        TraceService["📋 Trace Service\nlifecycle management"]
-        PolicyEngine["⚖️ Policy Engine\n6 evaluator types"]
-        AnalyticsService["📊 Analytics Service\naggregations + percentiles"]
-        AuditService["📜 Audit Service\nimmutable event log"]
-    end
-
-    subgraph Policy Evaluators
-        E1["Token Budget"]
-        E2["Cost Budget"]
-        E3["Tool Blocklist"]
-        E4["Rate Limit"]
-        E5["PII Detection"]
-        E6["Require Approval"]
-    end
-
-    subgraph Infrastructure
-        Postgres[("🐘 PostgreSQL\ntraces · policies\nviolations · audit")]
-        Redis[("⚡ Redis\nrate limiting\ncounters + TTL")]
-        Kafka[("📨 Kafka\nagent-traces\npolicy-violations\naudit-events")]
-    end
-
-    subgraph Observability
-        OTel["OpenTelemetry\nspans + metrics"]
-        Jaeger["Jaeger UI\n:16686"]
-        Prometheus["Prometheus\n/actuator/prometheus"]
-    end
-
-    subgraph Kafka Consumers
-        AuditConsumer["Audit Event\nConsumer"]
-    end
-
-    Agent -->|"POST /traces\nPOST /events\nPUT /complete"| Gateway
-    Dashboard -->|"GET + polling\napprove / reject"| Gateway
-    Gateway --> AuthFilter
-    AuthFilter --> TraceService
-    AuthFilter --> PolicyEngine
-    AuthFilter --> AnalyticsService
-
-    TraceService --> Postgres
-    TraceService --> Kafka
-    PolicyEngine --> E1 & E2 & E3 & E4 & E5 & E6
-    E4 --> Redis
-    PolicyEngine --> Postgres
-    AnalyticsService --> Postgres
-    AuditService --> Postgres
-
-    Kafka --> AuditConsumer
-    AuditConsumer --> AuditService
-
-    Gateway -.->|"spans"| OTel
-    OTel --> Jaeger
-    Gateway -.->|"metrics"| Prometheus
-```
 
 More detail is in [`docs/architecture.md`](./docs/architecture.md).
 
