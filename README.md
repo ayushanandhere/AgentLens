@@ -2,19 +2,80 @@
 
 Observe, govern, and audit every AI agent action in real time.
 
-AgentLens is an AI agent observability and governance platform built with Spring Boot. It records agent traces, enforces governance policies during execution, persists immutable audit records, streams operational events through Kafka, exports traces to Jaeger, and exposes a React operator dashboard for approvals and analytics.
+AgentLens is a platform for understanding what an AI agent did, why it did it, whether it should have been allowed to do it, and how a human operator can step in when needed.
 
-## What Ships Now
+Modern AI agents do more than generate text. They search documents, call tools, query databases, send messages, and make decisions step by step. That makes them powerful, but it also makes them harder to trust. If an agent gives a bad answer, that is one problem. If an agent triggers the wrong tool, leaks sensitive information, spends too much money, or performs an unsafe action without oversight, that is a much bigger operational problem.
 
-- Trace ingestion APIs with event-level governance, timeline views, and completion metrics.
-- Policy engine with `RATE_LIMIT`, `TOKEN_BUDGET`, `COST_BUDGET`, `TOOL_BLOCK`, `PII_CHECK`, and `REQUIRE_APPROVAL`.
-- Human approval workflow with `PENDING_APPROVAL`, operator approve/reject actions, and resumed or blocked traces.
-- API-key security using `X-API-Key` with separate `INGEST` and `OPERATOR` scopes.
-- Kafka-backed audit/event publishing with persisted audit log consumption.
-- Analytics APIs for summary, spend, latency, top agents, and violation trends.
-- OpenTelemetry starter integration with OTLP export to Jaeger plus Micrometer counters.
-- React dashboard under [`dashboard/`](./dashboard) with Traces, Trace Detail, Policies, Violations, and Analytics pages.
-- Automated backend and frontend tests, including Testcontainers-backed integration coverage when Docker is available.
+AgentLens exists to solve that problem.
+
+Instead of treating an agent run like a black box, AgentLens turns it into something visible and manageable. Every run is captured as a trace. Every important step inside that run can be recorded as an event. Policies can be evaluated while the run is happening, not only after it finishes. If a risky action appears, the platform can warn, block, or pause the trace and ask a human for approval. At the same time, the system keeps an audit trail and exposes dashboards so an operator can understand what happened without reading backend logs or guessing from scattered metrics.
+
+## Why This Project Matters
+
+When teams move from simple chatbot demos to real AI agents, three problems appear very quickly:
+
+1. It becomes hard to see what the agent actually did.
+2. It becomes hard to enforce safety and compliance rules consistently.
+3. It becomes hard to explain incidents after something goes wrong.
+
+AgentLens addresses all three:
+
+- It makes agent behavior observable by recording traces, events, latency, tokens, and cost.
+- It makes agent behavior governable by evaluating policies during execution.
+- It makes agent behavior auditable by storing violations, actions, and operator interventions.
+
+In other words, AgentLens sits between "an agent is running" and "an operator needs confidence that the run is safe, understandable, and accountable."
+
+## What AgentLens Does In Simple Terms
+
+Think of AgentLens as a control room for AI agents.
+
+- An agent starts a task.
+- AgentLens records that task as a trace.
+- As the agent performs actions, AgentLens records those actions as events.
+- Each event can be checked against safety or governance rules.
+- If something looks risky, AgentLens can stop the run, warn the operator, or request approval.
+- After the run finishes, AgentLens shows the full story in a dashboard and preserves an audit trail for later review.
+
+That means AgentLens helps answer questions like:
+
+- What exactly did the agent do?
+- Which tool call caused a policy violation?
+- Was the run blocked, approved, or completed normally?
+- How much time, tokens, and cost did this run consume?
+- If something went wrong, what is the evidence?
+
+## A Beginner-Friendly Example
+
+Imagine an AI agent helping with production operations.
+
+1. A user asks the agent to restart a service.
+2. The agent gathers context and decides to call a tool such as `sendNotification` or `execShell`.
+3. AgentLens records the trace and each tool call as it happens.
+4. A policy notices that one of those actions is sensitive.
+5. Instead of silently letting the agent continue, AgentLens pauses the trace and creates a pending approval item.
+6. An operator reviews the request in the dashboard and either approves or rejects it.
+7. The final result, decision path, and audit trail remain available for later inspection.
+
+Without a system like this, the team would usually piece the story together from application logs, database entries, and manual guesses. AgentLens brings that story into one place and makes it understandable.
+
+## High-Level View
+
+```mermaid
+flowchart LR
+    User["User or System Request"] --> Agent["AI Agent"]
+    Agent --> Trace["AgentLens records a trace"]
+    Trace --> Events["Tool calls, retrievals, responses, and errors become events"]
+    Events --> Policies["Policies evaluate what is happening"]
+    Policies -->|safe| Complete["Trace completes normally"]
+    Policies -->|risky| Review["Warn, block, or request human approval"]
+    Review --> Dashboard["Operator dashboard and audit trail"]
+    Complete --> Dashboard
+```
+
+## In One Sentence
+
+AgentLens helps teams run AI agents more responsibly by making each run observable, governable, and reviewable from start to finish.
 
 ## Architecture
 
